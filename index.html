@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hintapokka — päivän kiusallisin hintapulma</title>
+<meta name="description" content="Arvaa päivän viiden kohteen hinnat. Sama pulma kaikille. Jaa tuloksesi spoilaamatta. Uusi haaste joka päivä.">
+<style>
+  /* ---------- Design tokens: kassakuitti / hintalappu ---------- */
+  :root{
+    --paper:#f3ede1;
+    --paper-edge:#e6dcc8;
+    --ink:#1c1a17;
+    --ink-soft:#6b6453;
+    --amber:#e8a020;
+    --amber-deep:#b9760a;
+    --red:#c8412f;
+    --green:#3f7d4e;
+    --line:#cdc3ad;
+    --shadow: 0 18px 40px -20px rgba(28,26,23,.5);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:"Helvetica Neue", Arial, sans-serif;
+    background:radial-gradient(120% 80% at 50% -10%, #fff7ea 0%, var(--paper) 55%, var(--paper-edge) 100%);
+    color:var(--ink);min-height:100vh;display:flex;justify-content:center;
+    padding:24px 16px 64px;line-height:1.5;
+  }
+  .wrap{width:100%;max-width:460px}
+  header{text-align:center;margin-bottom:18px}
+  .kicker{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--ink-soft);font-weight:700}
+  h1{font-family:"Courier New", monospace;font-size:44px;font-weight:700;letter-spacing:-.02em;margin:.12em 0 .05em}
+  h1 .eur{color:var(--amber-deep)}
+  .sub{font-size:13px;color:var(--ink-soft)}
+  .datestrip{margin-top:12px;font-family:"Courier New",monospace;font-size:12px;color:var(--ink-soft);
+    letter-spacing:.06em;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);padding:7px 0}
+  .card{background:var(--paper);border-radius:6px;box-shadow:var(--shadow);padding:22px 20px 24px;position:relative}
+  .progress{display:flex;gap:6px;justify-content:center;margin-bottom:18px}
+  .pip{width:26px;height:6px;border-radius:3px;background:var(--line);transition:background .3s}
+  .pip.done{background:var(--ink)}
+  .pip.active{background:var(--amber)}
+  .qno{font-family:"Courier New",monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);text-align:center}
+  .item{text-align:center;margin:6px 0 4px;font-size:24px;font-weight:700;line-height:1.25}
+  /* media: image if present, else big emoji */
+  .media{text-align:center;margin:10px 0 4px;line-height:1}
+  .media .emoji{font-size:64px}
+  .media img{width:170px;height:170px;object-fit:cover;border-radius:10px;border:3px solid #fff;box-shadow:var(--shadow)}
+  .desc{text-align:center;color:var(--ink-soft);font-size:14px;margin-bottom:20px;min-height:1.2em}
+  .guessrow{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid var(--ink);border-radius:8px;padding:10px 14px;margin-bottom:14px}
+  .guessrow.shake{animation:shake .4s}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .guessrow input{border:none;outline:none;width:100%;font-size:30px;font-weight:700;font-family:"Courier New",monospace;background:transparent;color:var(--ink);text-align:right;-moz-appearance:textfield}
+  .guessrow input::-webkit-outer-spin-button,.guessrow input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .guessrow .eursign{font-size:30px;font-weight:700;font-family:"Courier New",monospace;color:var(--ink-soft)}
+  button{font-family:inherit;cursor:pointer}
+  .btn{width:100%;border:none;border-radius:8px;padding:15px;font-size:16px;font-weight:700;letter-spacing:.02em;background:var(--ink);color:var(--paper);transition:transform .08s, opacity .2s}
+  .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.amber{background:var(--amber);color:var(--ink)}
+  .reveal{margin-bottom:14px;text-align:center;animation:pop .35s}
+  @keyframes pop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+  .reveal .label{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+  .reveal .actual{font-family:"Courier New",monospace;font-size:40px;font-weight:700;margin:2px 0 6px}
+  .verdict{display:inline-block;font-weight:700;font-size:15px;padding:5px 14px;border-radius:20px}
+  .verdict.hot{background:rgba(63,125,78,.16);color:var(--green)}
+  .verdict.warm{background:rgba(232,160,32,.2);color:var(--amber-deep)}
+  .verdict.cold{background:rgba(200,65,47,.14);color:var(--red)}
+  .yourguess{font-size:13px;color:var(--ink-soft);margin-top:8px}
+  .factoid{font-size:13px;color:var(--ink-soft);margin-top:12px;padding:0 6px;font-style:italic}
+  .final{text-align:center}
+  .scorebig{font-family:"Courier New",monospace;font-size:60px;font-weight:700;line-height:1}
+  .scoreout{color:var(--ink-soft);font-size:14px;margin-bottom:4px}
+  .grade{font-size:20px;font-weight:700;margin:10px 0 18px}
+  .sharebox{background:#fff;border:1px dashed var(--line);border-radius:8px;font-family:"Courier New",monospace;font-size:20px;letter-spacing:.12em;padding:16px;margin:0 0 14px;white-space:pre-wrap}
+  .muted{font-size:12px;color:var(--ink-soft);text-align:center;margin-top:18px}
+  .foot{text-align:center;margin-top:26px;font-size:11px;color:var(--ink-soft);letter-spacing:.04em}
+  .foot a{color:var(--ink-soft)}
+  .copied{color:var(--green);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Päivän hintapulma</div>
+    <h1>Hintapokka<span class="eur">€</span></h1>
+    <div class="sub">Arvaa hinta. Älä googlaa. Menetä pokkasi.</div>
+    <div class="datestrip" id="datestrip">— — —</div>
+  </header>
+  <div class="card" id="card"></div>
+  <div class="foot">
+    Hinnat ovat suuntaa-antavia, julkisista lähteistä. · Kuvat: Unsplash / Pexels
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   HINTAPOKKA — daily price-guessing game (v2)
+   Single-file, no backend. Same 5 items per day for everyone.
+   Each item can have an `img` (filename in img/) OR fall back to emoji.
+   ========================================================= */
+
+const ITEMS = [
+  {emoji:"🥃", img:"viski.jpg",     name:"Alkon kallein viski",   desc:"Yksi pullo, hyllyn yläpää",        price:4499,  fact:"Alkon valikoiman kalleimmat pullot ovat keräilyharvinaisuuksia."},
+  {emoji:"⚰️", img:"arkku.jpg",     name:"Tavallinen arkku",      desc:"Perusmalli, hautaustoimisto",      price:900,   fact:"Hautajaisten kokonaiskulut Suomessa ovat usein 3000–5000 €."},
+  {emoji:"💍", img:"sormus.jpg",    name:"Kihlasormus, timantti", desc:"Klassinen, n. 0,5 ct",             price:1800,  fact:"Nyrkkisääntö 'kahden kuukauden palkka' on koruliikkeiden markkinointia."},
+  {emoji:"👶", img:"vauva.jpg",     name:"Vauvan 1. vuosi",       desc:"Vaipat, vaatteet, tarvikkeet",     price:3500,  fact:"Vaippoja kuluu ensimmäisenä vuonna karkeasti 2000–2500 kpl."},
+  {emoji:"🦷", img:"implantti.jpg", name:"Yksi hammasimplantti",  desc:"Juuri + kruunu, yksityinen",       price:2500,  fact:"Implantti on Suomessa harvoin Kela-korvattava."},
+  {emoji:"🚬", img:"tupakka.jpg",   name:"Tupakka-aski",          desc:"Yksi aski, 2025",                  price:11,    fact:"Vuoden ketjupolttajalla tämä tarkoittaa yli 4000 € vuodessa."},
+  {emoji:"😺", img:"kissa.jpg",     name:"Kissan elinkaari",      desc:"Koko elämä: ruoka, eläinlääkäri",  price:12000, fact:"Yllätyskirurgia voi yksin maksaa tuhansia euroja."},
+  {emoji:"👰", img:"haapuku.jpg",   name:"Hääpuku",               desc:"Uusi, liikkeestä",                 price:1500,  fact:"Häiden kokonaisbudjetti Suomessa on usein 10 000–15 000 €."},
+  {emoji:"💉", img:"huulet.jpg",    name:"Huulten täyttö",        desc:"Yksi käsittely, hyaluronihappo",   price:350,   fact:"Vaikutus kestää tyypillisesti 6–12 kuukautta — sitten uusiksi."},
+  {emoji:"⌚", img:"kello.jpg",     name:"Luksuskello (perusteräs)",desc:"Uusi, suosittu malli",            price:9000,  fact:"Suosituimmista malleista on jonotuslistat ja jälkimarkkinapreemio."},
+  {emoji:"🪦", img:"hautakivi.jpg", name:"Hautakivi tekstauksineen",desc:"Graniitti, asennettuna",         price:1700,  fact:"Hinta vaihtelee kiven koon ja kaiverruksen mukaan."},
+  {emoji:"🐶", img:"pentu.jpg",     name:"Rotukoiranpentu",       desc:"Kasvattajalta, suosittu rotu",     price:2000,  fact:"Tähän päälle tulevat elinkaarikulut: helposti 15 000 €+."},
+  {emoji:"🍼", img:"vaunut.jpg",    name:"Lastenvaunut, premium", desc:"Yhdistelmävaunut, merkkituote",    price:1300,  fact:"Jälleenmyyntiarvo säilyy yllättävän hyvin tunnetuilla merkeillä."},
+  {emoji:"💄", img:"ripset.jpg",    name:"Ripsienpidennykset/vuosi",desc:"Huoltovälit n. 3 vkon välein",   price:1100,  fact:"Yksi täyttö maksaa vähän — mutta niitä tarvitaan jatkuvasti."},
+];
+
+function dayNumber(){
+  const epoch=new Date(2025,0,1);const now=new Date();
+  const d=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  return Math.floor((d-epoch)/86400000);
+}
+function seededPick(seed,arr,n){
+  const a=arr.map((v,i)=>({v,i}));let s=seed*2654435761%2147483647;
+  const rng=()=>(s=s*16807%2147483647)/2147483647;
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a.slice(0,n).map(x=>x.v);
+}
+const DAY=dayNumber();
+const TODAY=seededPick(DAY+1,ITEMS,5);
+
+function scoreGuess(g,a){if(g<=0)return 0;const r=g>a?a/g:g/a;return Math.round(r*100);}
+function verdict(s){
+  if(s>=90)return{cls:"hot",txt:"🎯 Täysosuma!"};
+  if(s>=60)return{cls:"warm",txt:"🔥 Lähellä"};
+  if(s>=30)return{cls:"warm",txt:"😬 Sinne päin"};
+  return{cls:"cold",txt:"💸 Pielessä"};
+}
+function emojiFor(s){if(s>=90)return"🟩";if(s>=60)return"🟨";if(s>=30)return"🟧";return"🟥";}
+
+let idx=0,scores=[],revealed=false;
+const card=document.getElementById('card');
+document.getElementById('datestrip').textContent=
+  "KUITTI NRO "+String(DAY).padStart(4,"0")+"  ·  "+
+  new Date().toLocaleDateString("fi-FI",{day:"numeric",month:"long",year:"numeric"});
+function euro(n){return n.toLocaleString("fi-FI");}
+function mediaHtml(it){
+  // Show image if the file exists; <img> onerror falls back to emoji.
+  return `<div class="media">
+    <img src="img/${it.img}" alt="${it.name}"
+         onerror="this.outerHTML='<span class=\\'emoji\\'>${it.emoji}</span>'">
+  </div>`;
+}
+function renderProgress(){
+  let p="";for(let i=0;i<5;i++){const c=i<idx?"done":(i===idx?"active":"");p+=`<div class="pip ${c}"></div>`;}
+  return `<div class="progress">${p}</div>`;
+}
+function renderQuestion(){
+  const it=TODAY[idx];revealed=false;
+  card.innerHTML=`
+    ${renderProgress()}
+    <div class="qno">Kohde ${idx+1} / 5</div>
+    ${mediaHtml(it)}
+    <div class="item">${it.name}</div>
+    <div class="desc">${it.desc}</div>
+    <div class="guessrow" id="grow">
+      <input id="guess" type="number" inputmode="numeric" placeholder="0" aria-label="Arvauksesi euroina" />
+      <span class="eursign">€</span>
+    </div>
+    <button class="btn" id="go">Lukitse arvaus</button>`;
+  const input=document.getElementById('guess');input.focus();
+  document.getElementById('go').onclick=submit;
+  input.addEventListener('keydown',e=>{if(e.key==='Enter')submit();});
+}
+function submit(){
+  if(revealed)return;
+  const input=document.getElementById('guess');const val=parseFloat(input.value);
+  if(isNaN(val)||val<=0){
+    const g=document.getElementById('grow');g.classList.add('shake');
+    setTimeout(()=>g.classList.remove('shake'),400);return;
+  }
+  revealed=true;const it=TODAY[idx];const s=scoreGuess(val,it.price);scores.push(s);
+  const v=verdict(s);
+  card.innerHTML=`
+    ${renderProgress()}
+    <div class="qno">Kohde ${idx+1} / 5</div>
+    ${mediaHtml(it)}
+    <div class="item">${it.name}</div>
+    <div class="reveal">
+      <div class="label">Oikea hinta</div>
+      <div class="actual">${euro(it.price)} €</div>
+      <span class="verdict ${v.cls}">${v.txt} · ${s}/100</span>
+      <div class="yourguess">Sinun arvauksesi: ${euro(val)} €</div>
+      <div class="factoid">${it.fact}</div>
+    </div>
+    <button class="btn amber" id="next">${idx<4?"Seuraava kohde →":"Näytä tulos"}</button>`;
+  document.getElementById('next').onclick=()=>{idx++;if(idx<5)renderQuestion();else renderFinal();};
+  document.getElementById('next').focus();
+}
+function renderFinal(){
+  const total=scores.reduce((a,b)=>a+b,0);
+  const grid=scores.map(emojiFor).join("");
+  let grade;
+  if(total>=450)grade="🏆 Hintahirmu";
+  else if(total>=350)grade="💼 Tinkijä";
+  else if(total>=250)grade="🤷 Keskivertokuluttaja";
+  else if(total>=150)grade="😅 Hintasokea";
+  else grade="🫠 Elät toisessa taloudessa";
+  const shareText=`Hintapokka — Kuitti #${DAY}\n${grid}  ${total}/500\nhintapokka.fi`;
+  card.innerHTML=`
+    <div class="final">
+      <div class="scoreout">Päivän tulos</div>
+      <div class="scorebig">${total}<span style="font-size:24px;color:var(--ink-soft)">/500</span></div>
+      <div class="grade">${grade}</div>
+      <div class="sharebox" id="sb">${grid}\n${total}/500</div>
+      <button class="btn" id="share">Kopioi tulos jaettavaksi</button>
+      <div class="muted">Uusi pulma huomenna klo 00:00.<br>Älä spoilaa hintoja kavereille!</div>
+    </div>`;
+  document.getElementById('share').onclick=()=>{
+    navigator.clipboard?.writeText(shareText).then(()=>{
+      document.getElementById('share').innerHTML='<span class="copied">✓ Kopioitu! Liitä mihin haluat</span>';
+    }).catch(()=>{
+      const r=document.createRange();r.selectNode(document.getElementById('sb'));
+      window.getSelection().removeAllRanges();window.getSelection().addRange(r);
+    });
+  };
+}
+renderQuestion();
+</script>
+</body>
+</html>
